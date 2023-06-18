@@ -24,8 +24,8 @@ class Boat(arcade.Sprite):
         self.frames_passed += 1
 
         max_speed = 12
-        acceleration = 0.55
-        friction = 0.55
+        acceleration = 0.75
+        friction = 0.75
         keys_pressed = False
         if self.engine.up_pressed and not self.engine.down_pressed:
             self.change_y += acceleration
@@ -45,16 +45,35 @@ class Boat(arcade.Sprite):
                 if self.change_y > 0:
                     self.change_y = 0
             angle_speed = 0
-
         self.change_y = max(min(self.change_y, max_speed), -max_speed)
+
+        if self.engine.right_pressed and not self.engine.left_pressed:
+            self.change_x += acceleration
+            keys_pressed = True
+        elif self.engine.left_pressed and not self.engine.right_pressed:
+            self.change_x -= acceleration
+            keys_pressed = True
+        else:
+            if self.change_x > 0: 
+                self.change_x -= friction
+                if self.change_x < 0:
+                    self.change_x = 0
+            elif self.change_x < 0:
+                self.change_x += friction
+                if self.change_x > 0:
+                    self.change_x = 0
+        self.change_x = max(min(self.change_x, max_speed), -max_speed)
+
         if self.change_y == 0 and not keys_pressed:
             self.angle = sin(self.frames_passed/15)*6
         else:
             self.angle = lerp(self.angle, angle_speed, 0.18)
             self.frames_passed = 0
 
-        self.bottom = min(self.bottom, SCREEN_HEIGHT)
-        self.top = max(self.top, 0)
+        self.center_y = min(self.center_y, SCREEN_HEIGHT)
+        self.center_y = max(self.center_y, 0)
+        self.center_x = max(self.center_x, 0)
+        self.center_x = min(self.center_x, SCREEN_WIDTH)
 
     def update_animation(self, delta_time):
         self.texture = self.idle_anim.get_frame()

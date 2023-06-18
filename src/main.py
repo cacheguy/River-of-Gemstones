@@ -7,6 +7,7 @@ import random
 
 import boat
 import gems
+import dangers
 from constants import *
 
 
@@ -44,8 +45,14 @@ class Game(arcade.Window):
         self.use_interpolation = True
         self.use_snap_dt = True
 
-        self.old_time = 0
-        self.new_time = 0
+        self.gem_old_time = 0
+        self.gem_new_time = 0
+        self.rock_old_time = 0
+        self.rock_new_time = 0
+        self.piranha_old_time = 0
+        self.piranha_new_time = 0
+
+        self.bg_distance = 0
 
     def setup(self):
         """Set up the game here. Call this method to restart the game."""
@@ -63,14 +70,52 @@ class Game(arcade.Window):
         self.score = 0
         self.accumulator = 0
         self.background_color = (0,210,255)
-        self.old_time = time()
-        self.new_time = 0
 
-    
+        self.gem_old_time = time()
+        self.gem_new_time = 0
+
+        self.rock_old_time = time()
+        self.rock_new_time = random.randint(0,100)/100
+
+        self.piranha_old_time = time()
+        self.piranha_new_time = random.randint(0,100)/100
+
+        background_path = "src/assets/images/background.png"
+        main_background = arcade.Sprite(filename=background_path, scale=SCALE)
+        main_background.left = 0
+        main_background.bottom = 0
+        self.scene[BACKGROUNDS_LAYER].append(main_background)
+        i = 1
+        while True:
+            background = arcade.Sprite(filename=background_path, scale=SCALE)
+            background.left = main_background.width*i
+            if background.left > SCREEN_WIDTH+main_background.width: break
+            background.bottom = 0
+            self.scene[BACKGROUNDS_LAYER].append(background)
+            i+=1
+
+        additional_backgrounds = []
+        for bottom_background in self.scene[BACKGROUNDS_LAYER]:
+            i = 1
+            while True:
+                background = arcade.Sprite(filename=background_path, scale=SCALE)
+                background.bottom = bottom_background.height*i
+                if background.bottom > SCREEN_HEIGHT: break
+                background.center_x = bottom_background.center_x
+                additional_backgrounds.append(background)
+                i+=1
+        for sprite in additional_backgrounds: self.scene[BACKGROUNDS_LAYER].append(sprite)
+
+        
     def on_draw(self):
         """Clear, then render the screen."""
         self.clear()
         self.scene.draw(pixelated=True)
+        # if self.previous_gem:
+        #     arcade.draw_lrtb_rectangle_outline(
+        #         left=self.previous_gem.left, right=self.previous_gem.right,
+        #         top=self.previous_gem.center_y+500, bottom=self.previous_gem.center_y-500, color=(20, 20, 20)
+        #     )
         
         # Draw some debug text
         self.reset_debug_text()
@@ -102,11 +147,7 @@ class Game(arcade.Window):
             case arcade.key.LEFT | arcade.key.A: self.left_pressed = True
             case arcade.key.RIGHT | arcade.key.D: self.right_pressed = True
             case arcade.key.SPACE: self.space_pressed = True
-            case arcade.key.G: self.god_mode = not self.god_mode
             case arcade.key.F: self.enable_debug_text = not self.enable_debug_text
-            case arcade.key.Q: arcade.exit()
-            case arcade.key.H: self.next_level()
-            case arcade.key.V: self.enable_tile_stats = not self.enable_tile_stats
 
     def on_key_release(self, key, modifers):
         """Called when the user releases a key."""
@@ -163,12 +204,29 @@ class Game(arcade.Window):
         clock.tick()  # Removes unusual stuttering
         
     def update_everything(self):
-        self.new_time = time()
-        if self.new_time-self.old_time >= 0.5:
-            gem = gems.get_random_gem()(self.previous_gem, self.new_time-self.old_time)
+        self.gem_new_time = time()
+        self.rock_new_time = time()
+        self.piranha_new_time = time()
+        if self.gem_new_time-self.gem_old_time >= 0.8:
+            gem = gems.get_random_gem()(self.previous_gem, self.gem_new_time-self.gem_old_time)
             self.scene[GEMS_LAYER].append(gem)
-            self.old_time = time() 
+            self.gem_old_time = time() 
             self.previous_gem = gem
+
+        if self.rock_new_time-self.rock_old_time >= 3.5:
+            rock = dangers.Rock(self.previous_gem)
+            self.scene[DANGERS_LAYER].append(rock)
+            self.rock_old_time = time() 
+
+        if self.piranha_new_time-self.piranha_old_time >= 5.25:
+            piranha = dangers.Piranha(self.previous_gem)
+            self.scene[DANGERS_LAYER].append(piranha)
+            self.piranha_old_time = time() 
+
+        if self.scene[BACKGROUNDS_LAYER][0].right<0:
+            self.scene[BACKGROUNDS_LAYER].move(self.scene[BACKGROUNDS_LAYER][0].width, 0)
+        self.scene[BACKGROUNDS_LAYER].move(-3.2, 0)
+        
             
         self.scene.on_update(delta_time=self.dt)
         self.move_sprites()
