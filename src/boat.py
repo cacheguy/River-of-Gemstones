@@ -116,8 +116,10 @@ class Boat(arcade.Sprite):
                 if isinstance(sprite, dangers.Rock):
                     if not sprite.collided: self.stunned = True
                     sprite.get_hit_by_boat()
+                    self.engine.score -= 20
                 elif isinstance(sprite, dangers.Piranha):
                     self.stunned = True
+                    self.engine.score -= 40
 
         self.center_y = min(self.center_y, SCREEN_HEIGHT)
         self.center_y = max(self.center_y, 0)

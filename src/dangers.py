@@ -39,7 +39,7 @@ class Piranha(Danger):
         self.textures = [arcade.load_texture(f"{path}{i+1}.png") for i in range(3)]
         self.textures.append(self.textures[1])
         self.anim = Animation(self.textures, 0.26)
-        self.change_x = -6
+        self.change_x = -7
 
     def update_animation(self, delta_time):
         self.texture = self.anim.get_frame()

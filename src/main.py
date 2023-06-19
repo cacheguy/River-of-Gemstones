@@ -1,9 +1,12 @@
 import arcade
+from arcade import gui
+from tkinter import simpledialog
 
 from pyglet import clock
 from pyglet.math import Vec2
 from time import time
 import random
+import json
 
 import boat
 import gems
@@ -53,11 +56,14 @@ class Game(arcade.Window):
         self.piranha_new_time = 0
         self.start_time = 0
 
-        self.score_text = arcade.Text(text="HI", start_x=10, start_y=SCREEN_HEIGHT-48, 
-                                      font_name="Kenney Pixel", font_size=63)
+        self.time_text = arcade.Text(text="", start_x=10, start_y=SCREEN_HEIGHT-48, 
+                                      font_name="Kenney Pixel", font_size=60)
+        self.score_text = arcade.Text(text="", start_x=10, start_y=SCREEN_HEIGHT-110, 
+                                      font_name="Kenney Pixel", font_size=60)
 
         self.bg_distance = 0
         self.state = "game"
+        self.high_score_texts = []
 
     def setup(self):
         """Set up the game here. Call this method to restart the game."""
@@ -112,13 +118,12 @@ class Game(arcade.Window):
         for sprite in additional_backgrounds: self.scene[BACKGROUNDS_LAYER].append(sprite)
 
         self.start_time = time()
-
-        
+   
     def on_draw(self):
         """Clear, then render the screen."""
         self.clear()
         self.scene.draw(pixelated=True)
-        # if self.previous_gem:
+        # if sel.previous_gem:
         #     arcade.draw_lrtb_rectangle_outline(
         #         left=self.previous_gem.left, right=self.previous_gem.right,
         #         top=self.previous_gem.center_y+500, bottom=self.previous_gem.center_y-500, color=(20, 20, 20)
@@ -128,9 +133,13 @@ class Game(arcade.Window):
         self.reset_debug_text()
         self.debug_text("FPS", self.fps)
         # self.debug_text("Time Elapsed", time()-self.start_time)
-        self.score_text.text = f"Time Elapsed: {round(time()-self.start_time, 2)}"
+        self.time_text.text = f"Time: {round(time()-self.start_time, 2)}"
+        self.time_text.draw()
+        self.score_text.text = f"Score: {self.score}"
         self.score_text.draw()
-        arcade.Text.text
+        if self.high_score_texts:
+            for score in self.high_score_texts:
+                score.draw()
      
     def debug_text(self, item, value, round_floats=True):
         """Adds debug text to the top of the previous debug text."""
@@ -192,7 +201,10 @@ class Game(arcade.Window):
             while self.accumulator >= 1/62:
                 self.updates_per_frame += 1
                 original_position = self.boat.position
-                self.update_game()
+                if self.state == "game":
+                    self.update_game()
+                elif self.state == "high_score":
+                    self.update_high_score()
                 if self.accumulator < 0: self.accumulator = 0
                 self.accumulator -= 1/60
 
@@ -213,21 +225,42 @@ class Game(arcade.Window):
         clock.tick()  # Removes unusual stuttering
         
     def update_game(self):
+        if time()-self.start_time>=1:
+            self.state = "high_score"
+            name = simpledialog.askstring(title="Enter name", prompt="Enter name\t\t\t\t")
+            if name:
+                with open("src/high_scores.json") as f:
+                    high_scores = json.load(f)
+                high_scores[name] = 100
+                high_scores = dict(sorted(high_scores.items(), key=lambda x:x[1], reverse=True))
+                i = 0
+                self.high_score_texts = []
+                for key, value in high_scores.copy().items():
+                    if not i >= 10:
+                        self.high_score_texts.append(
+                            arcade.Text(text=f"{key}: {value}", start_x=SCREEN_WIDTH/2, start_y=SCREEN_HEIGHT-75-i*60, 
+                                        anchor_x="center", font_name="Kenney Pixel", font_size=80)
+                        )
+                    else:
+                        del high_scores[key]
+                    i += 1
+                with open("src/high_scores.json", "w") as f:
+                    json.dump(high_scores, f)
         self.gem_new_time = time()
         self.rock_new_time = time()
         self.piranha_new_time = time()
-        if self.gem_new_time-self.gem_old_time >= 0.5:
+        if self.gem_new_time-self.gem_old_time >= 0.75:
             gem = gems.get_random_gem()()
             self.scene[GEMS_LAYER].append(gem)
             self.gem_old_time = time() 
             self.previous_gem = gem
 
-        if self.rock_new_time-self.rock_old_time >= 1.75:
+        if self.rock_new_time-self.rock_old_time >= 1.5:
             rock = dangers.Rock(self.previous_gem)
             self.scene[DANGERS_LAYER].append(rock)
             self.rock_old_time = time() 
 
-        if self.piranha_new_time-self.piranha_old_time >= 5:
+        if self.piranha_new_time-self.piranha_old_time >= 4.8:
             piranha = dangers.Piranha(self.previous_gem)
             self.scene[DANGERS_LAYER].append(piranha)
             self.piranha_old_time = time() 
@@ -236,11 +269,13 @@ class Game(arcade.Window):
             self.scene[BACKGROUNDS_LAYER].move(self.scene[BACKGROUNDS_LAYER][0].width, 0)
         self.scene[BACKGROUNDS_LAYER].move(-3, 0)
         
-            
         self.scene.on_update(delta_time=self.dt)
         self.move_sprites()
         self.scene.update_animation(delta_time=self.dt)
+        if self.score<0: self.score=0
 
+    def update_high_score(self):
+        pass
 
 def main():
     """Main function to start the game."""
