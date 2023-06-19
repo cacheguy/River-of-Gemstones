@@ -2,7 +2,8 @@ import arcade
 from constants import *
 from animations import Animation
 from math import sin
-from pyglet.math import Vec2
+from time import time
+import dangers
 
 def lerp(value1, value2, alpha):
     return value1 + (alpha * (value2 - value1))
@@ -19,13 +20,52 @@ class Boat(arcade.Sprite):
         self.left = 160
         self.center_y = SCREEN_HEIGHT/2
         self.frames_passed = 0
+        self.fireball_old_time = time()
+        self.fireball_new_time = 0
+        self.stunned = 0
+        self.stun_anim_timer = 0
+        self.invincible_anim_timer = 0
+        self.invincible_old_time = 0
+        self.invincible = False
 
     def on_update(self, delta_time):
+        if self.stunned>0:
+            spin_speed = 11
+            if self.stunned+spin_speed>359: 
+                self.stunned = 0
+                self.angle += self.stunned+spin_speed-359
+                self.invincible = True
+                self.invincible_old_time = time()
+            else:
+                self.stop()
+                self.center_x -= 6
+                self.angle += spin_speed
+                self.stunned += spin_speed
+                if self.stun_anim_timer > 2:
+                    self.stun_anim_timer = 0
+                    self.visible = not self.visible
+                else:
+                    self.stun_anim_timer += 1
+                self.center_y = min(self.center_y, SCREEN_HEIGHT)
+                self.center_y = max(self.center_y, 0)
+                self.center_x = max(self.center_x, 0)
+                self.center_x = min(self.center_x, SCREEN_WIDTH)
+                return
         self.frames_passed += 1
-
-        max_speed = 12
-        acceleration = 0.75
-        friction = 0.75
+        
+        if self.invincible:
+            self.invincible_anim_timer += 1
+            if self.invincible_anim_timer >= 6:
+                self.invincible_anim_timer = 0
+                self.visible = not self.visible
+            if time()-self.invincible_old_time > 1.5:
+                self.invincible = False
+        else:
+            self.visible = True
+        max_speed = 9
+        if self.invincible: max_speed = 3
+        acceleration = 1.3
+        friction = 1.3
         keys_pressed = False
         if self.engine.up_pressed and not self.engine.down_pressed:
             self.change_y += acceleration
@@ -49,10 +89,8 @@ class Boat(arcade.Sprite):
 
         if self.engine.right_pressed and not self.engine.left_pressed:
             self.change_x += acceleration
-            keys_pressed = True
         elif self.engine.left_pressed and not self.engine.right_pressed:
             self.change_x -= acceleration
-            keys_pressed = True
         else:
             if self.change_x > 0: 
                 self.change_x -= friction
@@ -69,12 +107,59 @@ class Boat(arcade.Sprite):
         else:
             self.angle = lerp(self.angle, angle_speed, 0.18)
             self.frames_passed = 0
+        
+        self.summon_fireball()
+
+        collided = self.collides_with_list(self.engine.scene[DANGERS_LAYER])
+        if collided and not self.invincible:
+            for sprite in collided:
+                if isinstance(sprite, dangers.Rock):
+                    if not sprite.collided: self.stunned = True
+                    sprite.get_hit_by_boat()
+                elif isinstance(sprite, dangers.Piranha):
+                    self.stunned = True
 
         self.center_y = min(self.center_y, SCREEN_HEIGHT)
         self.center_y = max(self.center_y, 0)
         self.center_x = max(self.center_x, 0)
         self.center_x = min(self.center_x, SCREEN_WIDTH)
 
+    def summon_fireball(self):
+        self.fireball_new_time = time()
+        if self.fireball_new_time-self.fireball_old_time > 2:
+            self.fireball_old_time = self.fireball_new_time
+            fireball = Fireball()
+            fireball.set_position(self.center_x+75, self.center_y+40)
+            self.engine.scene[PROJECTILES_LAYER].append(fireball)
+
     def update_animation(self, delta_time):
         self.texture = self.idle_anim.get_frame()
         self.idle_anim.update(delta_time)
+
+
+class Fireball(arcade.Sprite):
+    def __init__(self):
+        super().__init__(scale=SCALE)
+        self.scale = SCALE
+        self.change_x = 18
+        self.textures = [arcade.load_texture(f"src/assets/images/projectiles/fireball{i+1}.png") for i in range(2)]
+        self.anim = Animation(self.textures, 0.15)
+        self.collided = False
+
+    def on_update(self, delta_time):
+        self.change_x -= 0.8
+        if self.left>SCREEN_WIDTH or self.right<0 or self.bottom>SCREEN_HEIGHT or self.top<0: self.kill()
+        if self.change_x < 10: self.change_x = 10
+        if self.alpha-20<0: self.kill(); return
+        if self.collided: self.alpha -= 20
+        else:
+            collided = self.collides_with_list(self.engine.scene[DANGERS_LAYER])
+            if collided and self.alpha == 255:
+                for sprite in collided:
+                    if isinstance(sprite, dangers.Rock):
+                        if not sprite.collided: self.collided = True
+                        sprite.get_hit_by_boat()
+
+    def update_animation(self, delta_time):
+        self.texture = self.anim.get_frame()
+        self.anim.update(delta_time)

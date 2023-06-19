@@ -7,15 +7,7 @@ class Danger(arcade.Sprite):
     def __init__(self, filename, previous_gem=None):
         super().__init__(filename=filename, scale=SCALE)
         self.left = SCREEN_WIDTH
-
-        # Try not to be in a gem's path
-        for _ in range(12):
-            self.center_y = random.randint(self.height, SCREEN_HEIGHT-self.height)
-            if previous_gem is None: break
-            top = previous_gem.original_position[1]+previous_gem.height/2 
-            bottom = previous_gem.original_position[1]-previous_gem.height/2
-            if not ((self.bottom < top and self.bottom > bottom) or (self.top < bottom and self.top > top)):
-                break
+        self.center_y = random.randint(self.height, SCREEN_HEIGHT-self.height)
         
         self.original_position = self.position
 
@@ -26,7 +18,19 @@ class Danger(arcade.Sprite):
 class Rock(Danger): 
     def __init__(self, *args, **kwargs):
         super().__init__(f"src/assets/images/dangers/rock{random.randint(1,3)}.png", *args, **kwargs)
-        self.change_x = -3.2
+        self.change_x = -3
+        self.collided = False
+
+    def on_update(self, delta_time):
+        super().on_update(delta_time)
+        if self.collided:
+            self.alpha -= 10
+            self.angle += 8
+            self.change_x = 2
+        if self.alpha-10 < 0: self.kill()
+
+    def get_hit_by_boat(self):
+        self.collided = True
 
 class Piranha(Danger): 
     def __init__(self, *args, **kwargs):

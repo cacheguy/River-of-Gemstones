@@ -51,8 +51,13 @@ class Game(arcade.Window):
         self.rock_new_time = 0
         self.piranha_old_time = 0
         self.piranha_new_time = 0
+        self.start_time = 0
+
+        self.score_text = arcade.Text(text="HI", start_x=10, start_y=SCREEN_HEIGHT-48, 
+                                      font_name="Kenney Pixel", font_size=63)
 
         self.bg_distance = 0
+        self.state = "game"
 
     def setup(self):
         """Set up the game here. Call this method to restart the game."""
@@ -106,6 +111,8 @@ class Game(arcade.Window):
                 i+=1
         for sprite in additional_backgrounds: self.scene[BACKGROUNDS_LAYER].append(sprite)
 
+        self.start_time = time()
+
         
     def on_draw(self):
         """Clear, then render the screen."""
@@ -120,11 +127,10 @@ class Game(arcade.Window):
         # Draw some debug text
         self.reset_debug_text()
         self.debug_text("FPS", self.fps)
-        if self.enable_debug_text:
-            self.debug_text("Player y", self.boat.center_y)
-            self.debug_text("Player x", self.boat.center_x)
-            self.debug_text("Change y", self.boat.change_y)
-            self.debug_text("Change x", self.boat.change_x)
+        # self.debug_text("Time Elapsed", time()-self.start_time)
+        self.score_text.text = f"Time Elapsed: {round(time()-self.start_time, 2)}"
+        self.score_text.draw()
+        arcade.Text.text
      
     def debug_text(self, item, value, round_floats=True):
         """Adds debug text to the top of the previous debug text."""
@@ -186,7 +192,7 @@ class Game(arcade.Window):
             while self.accumulator >= 1/62:
                 self.updates_per_frame += 1
                 original_position = self.boat.position
-                self.update_everything()
+                self.update_game()
                 if self.accumulator < 0: self.accumulator = 0
                 self.accumulator -= 1/60
 
@@ -199,33 +205,36 @@ class Game(arcade.Window):
 
         else:
             self.updates_per_frame = 1
-            self.update_everything()
+            if self.state == "game":
+                self.update_game()
+            elif self.state == "high_score":
+                self.update_high_score()
 
         clock.tick()  # Removes unusual stuttering
         
-    def update_everything(self):
+    def update_game(self):
         self.gem_new_time = time()
         self.rock_new_time = time()
         self.piranha_new_time = time()
-        if self.gem_new_time-self.gem_old_time >= 0.8:
-            gem = gems.get_random_gem()(self.previous_gem, self.gem_new_time-self.gem_old_time)
+        if self.gem_new_time-self.gem_old_time >= 0.5:
+            gem = gems.get_random_gem()()
             self.scene[GEMS_LAYER].append(gem)
             self.gem_old_time = time() 
             self.previous_gem = gem
 
-        if self.rock_new_time-self.rock_old_time >= 3.5:
+        if self.rock_new_time-self.rock_old_time >= 1.75:
             rock = dangers.Rock(self.previous_gem)
             self.scene[DANGERS_LAYER].append(rock)
             self.rock_old_time = time() 
 
-        if self.piranha_new_time-self.piranha_old_time >= 5.25:
+        if self.piranha_new_time-self.piranha_old_time >= 5:
             piranha = dangers.Piranha(self.previous_gem)
             self.scene[DANGERS_LAYER].append(piranha)
             self.piranha_old_time = time() 
 
         if self.scene[BACKGROUNDS_LAYER][0].right<0:
             self.scene[BACKGROUNDS_LAYER].move(self.scene[BACKGROUNDS_LAYER][0].width, 0)
-        self.scene[BACKGROUNDS_LAYER].move(-3.2, 0)
+        self.scene[BACKGROUNDS_LAYER].move(-3, 0)
         
             
         self.scene.on_update(delta_time=self.dt)
