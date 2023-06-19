@@ -11,6 +11,7 @@ class Gem(arcade.Sprite):
         self.original_position = self.position
         self.collected = False
         self.score_value = 0
+        self.collect_sound = arcade.sound.load_sound("src/assets/sounds/collect.wav")
 
     def on_update(self, delta_time):
         if self.collected:
@@ -22,7 +23,8 @@ class Gem(arcade.Sprite):
                 self.kill()
             elif self.collides_with_sprite(self.engine.boat) and not self.engine.boat.invincible: 
                 self.collected = True
-                self.engine.score += self.score_value
+                self.engine.score += self.score_value*(1+(self.left/SCREEN_WIDTH))*100
+                self.collect_sound.play()
         
 
 class Emerald(Gem):
@@ -38,17 +40,17 @@ class Amethyst(Gem):
 class Opal(Gem):
     def __init__(self, *args, **kwargs):
         super().__init__("src/assets/images/gems/opal.png", *args, **kwargs)
-        self.score_value = 5
+        self.score_value = 3
 
 class Ruby(Gem):
     def __init__(self, *args, **kwargs):
         super().__init__("src/assets/images/gems/ruby.png", *args, **kwargs)
-        self.score_value = 12
+        self.score_value = 8
 
 class Pearl(Gem):
     def __init__(self, *args, **kwargs):
         super().__init__("src/assets/images/gems/pearl.png", *args, **kwargs)
-        self.score_value = 25
+        self.score_value = 15
 
 GEM_CHANCES = [
     (40, Emerald),

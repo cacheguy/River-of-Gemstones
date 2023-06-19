@@ -27,6 +27,8 @@ class Boat(arcade.Sprite):
         self.invincible_anim_timer = 0
         self.invincible_old_time = 0
         self.invincible = False
+        self.hurt_sound = arcade.sound.load_sound("src/assets/sounds/hurt.wav")
+        self.fireball_sound = arcade.sound.load_sound("src/assets/sounds/fireball.wav")
 
     def on_update(self, delta_time):
         if self.stunned>0:
@@ -113,13 +115,14 @@ class Boat(arcade.Sprite):
         collided = self.collides_with_list(self.engine.scene[DANGERS_LAYER])
         if collided and not self.invincible:
             for sprite in collided:
-                if isinstance(sprite, dangers.Rock):
-                    if not sprite.collided: self.stunned = True
-                    sprite.get_hit_by_boat()
-                    self.engine.score -= 20
-                elif isinstance(sprite, dangers.Piranha):
-                    self.stunned = True
-                    self.engine.score -= 40
+                if not sprite.collided:
+                    self.stunned = 1
+                    self.hurt_sound.play()
+                    if isinstance(sprite, dangers.Rock):
+                        sprite.get_hit_by_boat()
+                        self.engine.score -= 1200
+                    elif isinstance(sprite, dangers.Piranha):
+                        self.engine.score -= 2500
 
         self.center_y = min(self.center_y, SCREEN_HEIGHT)
         self.center_y = max(self.center_y, 0)
@@ -128,7 +131,8 @@ class Boat(arcade.Sprite):
 
     def summon_fireball(self):
         self.fireball_new_time = time()
-        if self.fireball_new_time-self.fireball_old_time > 2:
+        if self.fireball_new_time-self.fireball_old_time>1.9:
+            self.fireball_sound.play()
             self.fireball_old_time = self.fireball_new_time
             fireball = Fireball()
             fireball.set_position(self.center_x+75, self.center_y+40)
@@ -143,13 +147,13 @@ class Fireball(arcade.Sprite):
     def __init__(self):
         super().__init__(scale=SCALE)
         self.scale = SCALE
-        self.change_x = 18
+        self.change_x = 20
         self.textures = [arcade.load_texture(f"src/assets/images/projectiles/fireball{i+1}.png") for i in range(2)]
         self.anim = Animation(self.textures, 0.15)
         self.collided = False
 
     def on_update(self, delta_time):
-        self.change_x -= 0.8
+        self.change_x -= 0.75
         if self.left>SCREEN_WIDTH or self.right<0 or self.bottom>SCREEN_HEIGHT or self.top<0: self.kill()
         if self.change_x < 10: self.change_x = 10
         if self.alpha-20<0: self.kill(); return
@@ -158,9 +162,10 @@ class Fireball(arcade.Sprite):
             collided = self.collides_with_list(self.engine.scene[DANGERS_LAYER])
             if collided and self.alpha == 255:
                 for sprite in collided:
-                    if isinstance(sprite, dangers.Rock):
-                        if not sprite.collided: self.collided = True
-                        sprite.get_hit_by_boat()
+                    if not sprite.collided: 
+                        if isinstance(sprite, dangers.Rock):
+                            self.collided = True
+                            sprite.get_hit_by_boat()
 
     def update_animation(self, delta_time):
         self.texture = self.anim.get_frame()
