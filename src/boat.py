@@ -64,7 +64,7 @@ class Boat(arcade.Sprite):
                 self.invincible = False
         else:
             self.visible = True
-        max_speed = 9
+        max_speed = 9.5
         if self.invincible: max_speed = 3
         acceleration = 1.3
         friction = 1.3
@@ -124,8 +124,8 @@ class Boat(arcade.Sprite):
                     elif isinstance(sprite, dangers.Piranha):
                         self.engine.score -= 2500
 
-        self.center_y = min(self.center_y, SCREEN_HEIGHT)
-        self.center_y = max(self.center_y, 0)
+        self.top = min(self.top, SCREEN_HEIGHT)
+        self.bottom = max(self.bottom, 0)
         self.center_x = max(self.center_x, 0)
         self.center_x = min(self.center_x, SCREEN_WIDTH)
 

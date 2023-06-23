@@ -23,7 +23,8 @@ class Gem(arcade.Sprite):
                 self.kill()
             elif self.collides_with_sprite(self.engine.boat) and not self.engine.boat.invincible: 
                 self.collected = True
-                self.engine.score += self.score_value*(1+(self.left/SCREEN_WIDTH))*100
+                self.engine.score += self.score_value*100
+                self.engine.score += self.score_value*100*1.2*(self.left/SCREEN_WIDTH)
                 self.collect_sound.play()
         
 
@@ -40,7 +41,7 @@ class Amethyst(Gem):
 class Opal(Gem):
     def __init__(self, *args, **kwargs):
         super().__init__("src/assets/images/gems/opal.png", *args, **kwargs)
-        self.score_value = 3
+        self.score_value = 4
 
 class Ruby(Gem):
     def __init__(self, *args, **kwargs):

@@ -14,8 +14,11 @@ from constants import *
 
 import os
 from pathlib import Path
-path = Path(os.path.dirname(__file__)).parents[0]
-os.chdir(path)
+import sys
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    os.chdir(Path(os.path.dirname(__file__)))
+else:
+    os.chdir(Path(os.path.dirname(__file__)).parents[0])
 
 
 class Game(arcade.Window):
@@ -26,6 +29,7 @@ class Game(arcade.Window):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, center_window=True)
         self.dt = 0
         self.main_music = arcade.play_sound(arcade.Sound("src/assets/sounds/music.mp3", streaming=True), looping=True)
+        self.state = "start"
 
     def setup(self):
         """Set up the game here. Call this method to restart the game."""
@@ -38,7 +42,6 @@ class Game(arcade.Window):
         self.down_pressed = False
         self.right_pressed = False
         self.left_pressed = False
-        self.space_pressed = False
 
         self.updates_per_frame = 0
         self.set_manually = False
@@ -56,7 +59,7 @@ class Game(arcade.Window):
                                       font_name="Kenney Pixel", font_size=60)
 
         self.bg_distance = 0
-        self.state = "game"
+        
         self.high_score_texts = []
         
         arcade.Sprite.engine = self  # Allow all sprites to access this engine
@@ -73,18 +76,7 @@ class Game(arcade.Window):
         self.accumulator = 0
         self.background_color = (0,210,255)
 
-        self.gem_old_time = time()
-        self.gem_new_time = 0
-
-        self.rock_old_time = time()
-        self.rock_new_time = random.randint(0,100)/100
-
-        self.piranha_old_time = time()
-        self.piranha_new_time = random.randint(0,100)/100
-
         self.piranha_count = 0
-
-        self.start_time = 0
 
         background_path = "src/assets/images/background.png"
         main_background = arcade.Sprite(filename=background_path, scale=SCALE)
@@ -111,24 +103,42 @@ class Game(arcade.Window):
                 additional_backgrounds.append(background)
                 i+=1
         for sprite in additional_backgrounds: self.scene[BACKGROUNDS_LAYER].append(sprite)
-
-        self.start_time = time()
         self.mouse_pressed = False
         self.play_again_button = None
         self.guis = []
-        self.topleft_box = arcade.SpriteSolidColor(285, 125, (0,0,20,180))
+        self.topleft_box = arcade.SpriteSolidColor(370, 126, (0,0,20,180))
         self.topleft_box.left = 0; self.topleft_box.top = SCREEN_HEIGHT
-   
+        self.start_text = arcade.Text(text="Press any key to start", start_x=SCREEN_WIDTH/2, start_y=SCREEN_HEIGHT/2, 
+                                      anchor_x="center", 
+                                      anchor_y="center", font_name="Kenney Pixel", font_size=60)
+        self.start_box = arcade.SpriteSolidColor(self.start_text.content_width+50, self.start_text.content_height+30, 
+                                                 (0,0,20,180))
+        self.start_box.set_position(SCREEN_WIDTH/2,SCREEN_HEIGHT/2)
+        self.show_fps = False
+
+    def set_times(self):
+        self.gem_old_time = time()
+        self.gem_new_time = 0
+
+        self.rock_old_time = time()
+        self.rock_new_time = random.randint(0,100)/100
+
+        self.piranha_old_time = time()
+        self.piranha_new_time = random.randint(0,100)/100
+        self.start_time = time()
+        
     def on_draw(self):
         """Clear, then render the screen."""
         self.clear()
         self.scene.draw(pixelated=True)
         
-        
         # Draw some debug text
         self.reset_debug_text()
-        self.debug_text("FPS", self.fps)
+        if self.show_fps: self.debug_text("FPS", self.fps)
         # self.debug_text("Time Elapsed", time()-self.start_time)
+        if self.state == "start":
+            self.start_box.draw()
+            self.start_text.draw()
         if self.state == "game":
             self.topleft_box.draw()
             self.time_text.text = f"Time: {round(60-(time()-self.start_time), 2)}"
@@ -158,7 +168,8 @@ class Game(arcade.Window):
             case arcade.key.DOWN | arcade.key.S: self.down_pressed = True
             case arcade.key.LEFT | arcade.key.A: self.left_pressed = True
             case arcade.key.RIGHT | arcade.key.D: self.right_pressed = True
-            case arcade.key.SPACE: self.space_pressed = True
+            case arcade.key.F: self.show_fps = not self.show_fps
+        if self.state == "start": self.state = "game"; self.set_times()
 
     def on_key_release(self, key, modifers):
         """Called when the user releases a key."""
@@ -167,7 +178,6 @@ class Game(arcade.Window):
             case arcade.key.DOWN | arcade.key.S: self.down_pressed = False
             case arcade.key.LEFT | arcade.key.A: self.left_pressed = False
             case arcade.key.RIGHT | arcade.key.D: self.right_pressed = False
-            case arcade.key.SPACE: self.space_pressed = False
     def move_sprites(self):
         """Moves sprites based on their change_x, change_y, and change_angle attributes"""
         for spritelist in self.scene.sprite_lists:
@@ -228,7 +238,7 @@ class Game(arcade.Window):
         if time()-self.start_time>=60:
             self.state = "high_score"
             name = simpledialog.askstring(title="Game complete!", prompt="Enter name\t\t\t\t")
-            with open("src/high_scores.json") as f:
+            with open("src/assets/high_scores.json") as f:
                 high_scores: dict = json.load(f)
             if not name: name = "PLAYER"
             name = name.strip()
@@ -265,7 +275,7 @@ class Game(arcade.Window):
             gui_texts.append(text)
             widths.append(text.content_width)
 
-            with open("src/high_scores.json", "w") as f:
+            with open("src/assets/high_scores.json", "w") as f:
                 json.dump(high_scores, f)
             high_scores_box = arcade.SpriteSolidColor(width=max(widths)+50, height=SCREEN_HEIGHT-30, 
                                                       color=(0,0,20,180))
@@ -291,7 +301,7 @@ class Game(arcade.Window):
             self.scene[GEMS_LAYER].append(gem)
             self.gem_old_time = time() 
 
-        if self.rock_new_time-self.rock_old_time >= 1.75:
+        if self.rock_new_time-self.rock_old_time >= 1.5:
             rock = dangers.Rock()
             self.scene[DANGERS_LAYER].append(rock)
             self.rock_old_time = time() 
@@ -303,7 +313,7 @@ class Game(arcade.Window):
             if self.piranha_count > random.randint(7,10):
                 piranha.scale=SCALE*2
                 piranha.color=(0,255,255)
-                piranha.change_x = -23
+                piranha.change_x = -20
                 self.piranha_count = 0
                 count = 4
             for i in range(count):
@@ -311,8 +321,8 @@ class Game(arcade.Window):
                 piranha2.center_y = random.randint(piranha2.height, SCREEN_HEIGHT-piranha2.height)
                 if i == 0 and random.choice((True, False, False)) and not count == 4:
                     piranha2.color = (255,255,0)
-                    if piranha2.center_y > SCREEN_HEIGHT/2: piranha2.change_y = -1
-                    else: piranha2.change_y = 1
+                    if piranha2.center_y > SCREEN_HEIGHT/2: piranha2.change_y = -1.2
+                    else: piranha2.change_y = 1.2
                 self.scene[DANGERS_LAYER].append(piranha2)
             self.scene[DANGERS_LAYER].append(piranha)
             self.piranha_old_time = time() 
@@ -331,7 +341,9 @@ class Game(arcade.Window):
         if self.play_again_button.collides_with_point([self._mouse_x, self._mouse_y]):
             self.play_again_button.color = (50*1.5, 164*1.5, 49*1.5)
             if self.mouse_pressed:
+                self.state = "game"
                 self.setup()
+                self.set_times()
         else:
             self.play_again_button.color = (50, 164, 49)
 
